@@ -1,437 +1,101 @@
-name: 🚀 Build Panda Vault APK
+name: Build Panda Vault APK
 
 on:
-push:
-branches:
-- main
-- master
+  push:
+    branches:
+      - main
+      - master
 
-pull_request:
-branches:
-- main
-- master
+  pull_request:
+    branches:
+      - main
+      - master
 
-workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
-contents: read
+  contents: read
 
 jobs:
-
-============================================================
-
-JOB 1 — BUILD ANDROID APK
-
-============================================================
-
-build:
-
-name: 🔨 Build Panda Vault Android APK
-
-runs-on: ubuntu-latest
-
-steps:
-
-  # ----------------------------------------------------------
-  # 1. Download repository source code
-  # ----------------------------------------------------------
-
-  - name: 📥 Checkout source code
-    uses: actions/checkout@v4
-
-
-  # ----------------------------------------------------------
-  # 2. Check project structure
-  # ----------------------------------------------------------
-
-  - name: 🔍 Check project structure
-    shell: bash
-    run: |
-      echo "======================================"
-      echo "PANDA VAULT PROJECT STRUCTURE"
-      echo "======================================"
-
-      echo ""
-      echo "Current directory:"
-      pwd
-
-      echo ""
-      echo "Files:"
-      find . -maxdepth 3 -type f | sort | head -300
-
-
-  # ----------------------------------------------------------
-  # 3. Install Java 17
-  # ----------------------------------------------------------
-
-  - name: ☕ Setup Java 17
-    uses: actions/setup-java@v4
-    with:
-      distribution: temurin
-      java-version: '17'
-      cache: gradle
-
-
-  # ----------------------------------------------------------
-  # 4. Setup Gradle 8.9
-  # ----------------------------------------------------------
-
-  - name: ⚙️ Setup Gradle 8.9
-    uses: gradle/actions/setup-gradle@v4
-    with:
-      gradle-version: '8.9'
-
-
-  # ----------------------------------------------------------
-  # 5. Create root Gradle build file if missing
-  # ----------------------------------------------------------
-
-  - name: 🧩 Create root Gradle configuration
-    shell: bash
-    run: |
-
-      if [ ! -f "build.gradle.kts" ]; then
-
-        echo "Creating root build.gradle.kts..."
-
-        cat > build.gradle.kts <<'EOF'
-
-        plugins {
-            id("com.android.application") version "8.7.3" apply false
-            id("org.jetbrains.kotlin.android") version "2.0.21" apply false
-            id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
-            id("com.google.devtools.ksp") version "2.0.21-1.0.28" apply false
-        }
-
-        EOF
-
-      else
-
-        echo "Root build.gradle.kts already exists."
-
-      fi
-
-
-  # ----------------------------------------------------------
-  # 6. Create Gradle Version Catalog
-  # ----------------------------------------------------------
-
-  - name: 📚 Create Gradle version catalog
-    shell: bash
-    run: |
-
-      mkdir -p gradle
-
-      cat > gradle/libs.versions.toml <<'EOF'
-
-      [versions]
-
-      agp = "8.7.3"
-      kotlin = "2.0.21"
-      ksp = "2.0.21-1.0.28"
-
-      coreKtx = "1.15.0"
-      activityCompose = "1.10.0"
-      fragment = "1.8.5"
-      biometric = "1.1.0"
-      lifecycle = "2.8.7"
-
-      composeBom = "2024.12.01"
-
-      room = "2.6.1"
-
-      junit = "4.13.2"
-      robolectric = "4.14.1"
-      junitExt = "1.2.1"
-      espresso = "3.6.1"
-
-      [libraries]
-
-      androidx-core-ktx = {
-          module = "androidx.core:core-ktx",
-          version.ref = "coreKtx"
-      }
-
-      androidx-activity-compose = {
-          module = "androidx.activity:activity-compose",
-          version.ref = "activityCompose"
-      }
-
-      androidx-fragment-ktx = {
-          module = "androidx.fragment:fragment-ktx",
-          version.ref = "fragment"
-      }
-
-      androidx-biometric = {
-          module = "androidx.biometric:biometric",
-          version.ref = "biometric"
-      }
-
-      androidx-lifecycle-viewmodel-ktx = {
-          module = "androidx.lifecycle:lifecycle-viewmodel-ktx",
-          version.ref = "lifecycle"
-      }
-
-      androidx-lifecycle-runtime-compose = {
-          module = "androidx.lifecycle:lifecycle-runtime-compose",
-          version.ref = "lifecycle"
-      }
-
-      compose-bom = {
-          module = "androidx.compose:compose-bom",
-          version.ref = "composeBom"
-      }
-
-      compose-ui = {
-          module = "androidx.compose.ui:ui"
-      }
-
-      compose-ui-tooling-preview = {
-          module = "androidx.compose.ui:ui-tooling-preview"
-      }
-
-      compose-ui-tooling = {
-          module = "androidx.compose.ui:ui-tooling"
-      }
-
-      compose-foundation = {
-          module = "androidx.compose.foundation:foundation"
-      }
-
-      compose-material3 = {
-          module = "androidx.compose.material3:material3"
-      }
-
-      compose-material-icons-extended = {
-          module = "androidx.compose.material:material-icons-extended"
-      }
-
-      androidx-room-runtime = {
-          module = "androidx.room:room-runtime",
-          version.ref = "room"
-      }
-
-      androidx-room-ktx = {
-          module = "androidx.room:room-ktx",
-          version.ref = "room"
-      }
-
-      androidx-room-compiler = {
-          module = "androidx.room:room-compiler",
-          version.ref = "room"
-      }
-
-      junit = {
-          module = "junit:junit",
-          version.ref = "junit"
-      }
-
-      robolectric = {
-          module = "org.robolectric:robolectric",
-          version.ref = "robolectric"
-      }
-
-      androidx-junit = {
-          module = "androidx.test.ext:junit",
-          version.ref = "junitExt"
-      }
-
-      espresso-core = {
-          module = "androidx.test.espresso:espresso-core",
-          version.ref = "espresso"
-      }
-
-      [plugins]
-
-      android-application = {
-          id = "com.android.application",
-          version.ref = "agp"
-      }
-
-      kotlin-android = {
-          id = "org.jetbrains.kotlin.android",
-          version.ref = "kotlin"
-      }
-
-      kotlin-compose = {
-          id = "org.jetbrains.kotlin.plugin.compose",
-          version.ref = "kotlin"
-      }
-
-      ksp = {
-          id = "com.google.devtools.ksp",
-          version.ref = "ksp"
-      }
-
-      EOF
-
-
-  # ----------------------------------------------------------
-  # 7. Check important Android files
-  # ----------------------------------------------------------
-
-  - name: 🔎 Verify Android project
-    shell: bash
-    run: |
-
-      echo "Checking required files..."
-
-      test -f settings.gradle.kts
-      test -f app/build.gradle.kts
-      test -f app/src/main/AndroidManifest.xml
-
-      echo ""
-      echo "✅ settings.gradle.kts found"
-      echo "✅ app/build.gradle.kts found"
-      echo "✅ AndroidManifest.xml found"
-
-      echo ""
-      echo "Android source files:"
-      find app/src/main -type f | sort
-
-
-  # ----------------------------------------------------------
-  # 8. Make Gradle executable if wrapper exists
-  # ----------------------------------------------------------
-
-  - name: 🔧 Prepare Gradle wrapper
-    shell: bash
-    run: |
-
-      if [ -f "./gradlew" ]; then
-
-        chmod +x ./gradlew
-
-        echo "Gradle wrapper found."
-
-      else
-
-        echo "No Gradle wrapper found."
-        echo "Using GitHub-installed Gradle instead."
-
-      fi
-
-
-  # ----------------------------------------------------------
-  # 9. Clean previous build
-  # ----------------------------------------------------------
-
-  - name: 🧹 Clean project
-    shell: bash
-    run: |
-
-      gradle clean \
-        --stacktrace \
-        --no-daemon
-
-
-  # ----------------------------------------------------------
-  # 10. Download dependencies and compile project
-  # ----------------------------------------------------------
-
-  - name: 📦 Download dependencies
-    shell: bash
-    run: |
-
-      gradle dependencies \
-        --stacktrace \
-        --no-daemon
-
-
-  # ----------------------------------------------------------
-  # 11. Build Debug APK
-  # ----------------------------------------------------------
-
-  - name: 🔨 Build Debug APK
-    shell: bash
-    run: |
-
-      gradle :app:assembleDebug \
-        --stacktrace \
-        --no-daemon \
-        --warning-mode all
-
-
-  # ----------------------------------------------------------
-  # 12. Show generated APK
-  # ----------------------------------------------------------
-
-  - name: 📱 Find generated APK
-    shell: bash
-    run: |
-
-      echo "======================================"
-      echo "GENERATED APK FILES"
-      echo "======================================"
-
-      find app/build/outputs/apk \
-        -type f \
-        -name "*.apk" \
-        -print
-
-
-  # ----------------------------------------------------------
-  # 13. Rename APK
-  # ----------------------------------------------------------
-
-  - name: 🏷️ Prepare APK
-    shell: bash
-    run: |
-
-      mkdir -p release-apk
-
-      APK_FILE=$(find app/build/outputs/apk/debug \
-        -type f \
-        -name "*.apk" \
-        | head -n 1)
-
-      if [ -z "$APK_FILE" ]; then
-        echo "❌ APK not found!"
-        exit 1
-      fi
-
-      cp "$APK_FILE" \
-        "release-apk/PandaVault-debug.apk"
-
-      echo "APK prepared:"
-      ls -lh release-apk/PandaVault-debug.apk
-
-
-  # ----------------------------------------------------------
-  # 14. Upload APK to GitHub Actions
-  # ----------------------------------------------------------
-
-  - name: 📤 Upload APK artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: PandaVault-APK
-      path: release-apk/PandaVault-debug.apk
-      if-no-files-found: error
-      retention-days: 30
-
-
-  # ----------------------------------------------------------
-  # 15. Build summary
-  # ----------------------------------------------------------
-
-  - name: 🎉 Build summary
-    shell: bash
-    run: |
-
-      echo ""
-      echo "======================================"
-      echo "       PANDA VAULT BUILD COMPLETE"
-      echo "======================================"
-      echo ""
-      echo "✅ Android project compiled"
-      echo "✅ Debug APK created"
-      echo "✅ APK uploaded to GitHub Actions"
-      echo ""
-      echo "APK:"
-      ls -lh release-apk/PandaVault-debug.apk
-      echo ""
-      echo "Go to:"
-      echo "GitHub → Actions → Build Panda Vault APK"
-      echo "→ Artifacts → PandaVault-APK"
-      echo ""
-      echo "======================================"
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Show project files
+        run: |
+          echo "Project files:"
+          find . -maxdepth 3 -type f | sort
+
+      - name: Check Gradle wrapper
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+            echo "Gradle wrapper found."
+          else
+            echo "Gradle wrapper not found."
+            echo "Using installed Gradle."
+          fi
+
+      - name: Clean project
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew clean --no-daemon --stacktrace
+          else
+            gradle clean --no-daemon --stacktrace
+          fi
+
+      - name: Build Debug APK
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          else
+            gradle :app:assembleDebug --no-daemon --stacktrace
+          fi
+
+      - name: Find APK
+        id: find_apk
+        run: |
+          APK=$(find app/build/outputs/apk -type f -name "*.apk" | head -n 1)
+
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK was not created."
+            exit 1
+          fi
+
+          echo "APK found: $APK"
+          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
+
+      - name: Copy APK
+        run: |
+          mkdir -p release
+          cp "${{ steps.find_apk.outputs.apk_path }}" \
+             "release/PandaVault-debug.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PandaVault-APK
+          path: release/PandaVault-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build completed
+        run: |
+          echo "Panda Vault APK build completed successfully."
+          ls -lh release/PandaVault-debug.apk
