@@ -18,210 +18,262 @@ permissions:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Build Panda Vault APK
     runs-on: ubuntu-latest
 
     steps:
 
-      # 1. Get source code
-      - name: Checkout source code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Install Java 17
+
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # 3. Find Android project
-      - name: Find Android project
+
+      - name: Show repository files
         shell: bash
         run: |
-          echo "Searching for Android Gradle project..."
+          echo "Repository contents:"
+          find . -maxdepth 3 -type f -not -path './.git/*' | sort
 
-          PROJECT_DIR=""
 
-          if [ -f "settings.gradle.kts" ] || [ -f "settings.gradle" ]; then
-            PROJECT_DIR="."
+      - name: Extract Panda Vault ZIP
+        shell: bash
+        run: |
+          set -e
+
+          ZIP_FILE=""
+
+          if [ -f "PandaVault-GitHub-Ready.zip" ]; then
+            ZIP_FILE="PandaVault-GitHub-Ready.zip"
           else
-            FOUND=$(find . -type f \( \
-              -name "settings.gradle.kts" -o \
-              -name "settings.gradle" \
-            \) -print -quit)
-
-            if [ -n "$FOUND" ]; then
-              PROJECT_DIR=$(dirname "$FOUND")
-            fi
+            ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
           fi
 
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: settings.gradle.kts or settings.gradle not found."
-            echo "Repository structure:"
-            find . -maxdepth 5 -type f | sort
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: Panda Vault ZIP file was not found."
             exit 1
           fi
 
+          echo "ZIP found:"
+          echo "$ZIP_FILE"
+
+          mkdir -p extracted
+
+          unzip -o "$ZIP_FILE" -d extracted
+
+          echo ""
+          echo "ZIP extracted successfully."
+
+          echo ""
+          echo "Extracted files:"
+          find extracted -maxdepth 5 -type f | sort
+
+
+      - name: Find Android project
+        shell: bash
+        run: |
+          set -e
+
+          echo "Searching for Android Gradle project..."
+
+          SETTINGS_FILE=$(find extracted \
+            -type f \
+            \( -name "settings.gradle.kts" -o -name "settings.gradle" \) \
+            -print -quit)
+
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo ""
+            echo "ERROR: Android Gradle project was not found."
+            echo ""
+            echo "Extracted repository:"
+            find extracted -maxdepth 8 -type f | sort
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+
           PROJECT_DIR=$(realpath "$PROJECT_DIR")
 
-          echo "Android project found at:"
+          echo ""
+          echo "Android project found:"
           echo "$PROJECT_DIR"
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      # 4. Show project structure
-      - name: Check project structure
+
+      - name: Check Android project
         shell: bash
         run: |
-          echo "Project directory:"
+          set -e
+
+          echo "Android project:"
           echo "$PROJECT_DIR"
 
           echo ""
           echo "Project files:"
-          find "$PROJECT_DIR" -maxdepth 4 -type f | sort
 
-      # 5. Install Gradle 8.9 manually
-      # This avoids the Setup Gradle error
+          find "$PROJECT_DIR" \
+            -maxdepth 4 \
+            -type f \
+            | sort
+
+
       - name: Install Gradle 8.9
         shell: bash
         run: |
+          set -e
+
           GRADLE_VERSION="8.9"
           GRADLE_DIR="$HOME/gradle-$GRADLE_VERSION"
 
           if [ ! -d "$GRADLE_DIR" ]; then
+
             echo "Downloading Gradle $GRADLE_VERSION..."
 
             wget -q \
               "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" \
               -O "$HOME/gradle.zip"
 
-            unzip -q "$HOME/gradle.zip" -d "$HOME"
+            unzip -q \
+              "$HOME/gradle.zip" \
+              -d "$HOME"
 
             rm "$HOME/gradle.zip"
+
           fi
 
           echo "GRADLE_HOME=$GRADLE_DIR" >> "$GITHUB_ENV"
+
           echo "$GRADLE_DIR/bin" >> "$GITHUB_PATH"
 
-          gradle --version
-
-      # 6. Check Gradle files
-      - name: Check Gradle files
-        shell: bash
-        run: |
-          cd "$PROJECT_DIR"
-
-          echo "Current directory:"
-          pwd
-
           echo ""
-          echo "Gradle files:"
+          echo "Gradle version:"
+          "$GRADLE_DIR/bin/gradle" --version
 
-          ls -la
 
-          echo ""
-          find . -maxdepth 3 -type f \
-            \( -name "build.gradle" \
-            -o -name "build.gradle.kts" \
-            -o -name "settings.gradle" \
-            -o -name "settings.gradle.kts" \
-            -o -name "libs.versions.toml" \
-            -o -name "gradle-wrapper.properties" \) \
-            -print
-
-      # 7. Create Gradle wrapper if missing
       - name: Prepare Gradle wrapper
         shell: bash
         run: |
+          set -e
+
           cd "$PROJECT_DIR"
 
           if [ -f "./gradlew" ]; then
+
             echo "Gradle wrapper already exists."
+
             chmod +x ./gradlew
+
           else
+
             echo "Gradle wrapper not found."
-            echo "Generating Gradle wrapper..."
+
+            echo "Creating Gradle wrapper..."
 
             gradle wrapper \
               --gradle-version 8.9 \
               --distribution-type bin
 
             chmod +x ./gradlew
+
           fi
 
           echo ""
           echo "Gradle wrapper ready."
 
-      # 8. Verify Gradle wrapper
-      - name: Verify Gradle
+
+      - name: Verify Gradle wrapper
         shell: bash
         run: |
+          set -e
+
           cd "$PROJECT_DIR"
 
           ./gradlew --version
 
-      # 9. Clean project
+
       - name: Clean project
         shell: bash
         run: |
+          set -e
+
           cd "$PROJECT_DIR"
 
           ./gradlew clean \
             --no-daemon \
             --stacktrace
 
-      # 10. Build Debug APK
+
       - name: Build Debug APK
         shell: bash
         run: |
+          set -e
+
           cd "$PROJECT_DIR"
+
+          echo "Starting Panda Vault APK build..."
 
           ./gradlew :app:assembleDebug \
             --no-daemon \
             --stacktrace \
             --warning-mode all
 
-      # 11. Find APK
-      - name: Find APK
+
+      - name: Find generated APK
         id: find_apk
         shell: bash
         run: |
-          cd "$PROJECT_DIR"
+          set -e
 
-          echo "Searching for APK..."
+          echo "Searching for generated APK..."
 
-          APK=$(find app/build/outputs/apk \
+          APK_FILE=$(find "$PROJECT_DIR/app/build/outputs/apk" \
             -type f \
             -name "*.apk" \
             -print \
             | head -n 1)
 
-          if [ -z "$APK" ]; then
-            echo "ERROR: APK was not generated."
+          if [ -z "$APK_FILE" ]; then
+
             echo ""
-            echo "APK directory:"
-            find app/build/outputs -type f 2>/dev/null || true
+            echo "ERROR: APK was not generated."
+
+            echo ""
+            echo "Build output:"
+            find "$PROJECT_DIR/app/build/outputs" \
+              -type f \
+              -print 2>/dev/null || true
+
             exit 1
           fi
 
+          echo ""
           echo "APK found:"
-          echo "$APK"
+          echo "$APK_FILE"
 
-          echo "APK_PATH=$PROJECT_DIR/$APK" >> "$GITHUB_ENV"
+          echo "APK_FILE=$APK_FILE" >> "$GITHUB_ENV"
 
-      # 12. Prepare APK
+
       - name: Prepare APK
         shell: bash
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/release"
+          set -e
 
-          cp "$APK_PATH" \
-            "$GITHUB_WORKSPACE/release/PandaVault-debug.apk"
+          mkdir -p release
 
-          echo "APK ready:"
-          ls -lh "$GITHUB_WORKSPACE/release/PandaVault-debug.apk"
+          cp "$APK_FILE" \
+            "release/PandaVault-debug.apk"
 
-      # 13. Upload APK
+          echo ""
+          echo "Final APK:"
+          ls -lh "release/PandaVault-debug.apk"
+
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -230,22 +282,22 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # 14. Final result
-      - name: Build completed
+
+      - name: Build success
         shell: bash
         run: |
           echo ""
           echo "======================================"
-          echo "       PANDA VAULT BUILD SUCCESS"
+          echo " PANDA VAULT APK BUILD SUCCESSFUL"
           echo "======================================"
           echo ""
-          echo "APK:"
+          echo "APK file:"
           ls -lh release/PandaVault-debug.apk
           echo ""
-          echo "Go to GitHub:"
+          echo "Go to:"
           echo "Actions"
-          echo "→ Build Panda Vault APK"
-          echo "→ Artifacts"
-          echo "→ PandaVault-APK"
+          echo "-> Build Panda Vault APK"
+          echo "-> Artifacts"
+          echo "-> PandaVault-APK"
           echo ""
           echo "======================================"
